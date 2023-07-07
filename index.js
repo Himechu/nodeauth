@@ -2,7 +2,8 @@ import express from "express"
 import mongoose from "mongoose"
 import User from "./model/User.js"
 import bcrypt from "bcrypt";
-
+import jwt from "jsonwebtoken"
+import payload from "payload"
 let app = express()
 
 mongoose.connect(`mongodb+srv://andrea_chalat:AtlasAndrea95^^@cluster0.ogvhdgx.mongodb.net/`, 
@@ -44,23 +45,30 @@ app.post("/signup", async (req, res) => {
 //     }
 // });
 
+
+// let token = jwt.sign(payload, secret_key);
 app.post("/login", async (req, res) => {
     try {
         let user = await User.findOne({ email: req.body.email });
-        let isMatch = await bcrypt.compare(req.body.password, user.password);
- 
-        if (user) {
+        if (user) { 
+       
+            let isMatch = await bcrypt.compare(
+                req.body.password,
+                user.password
+               
+            );
             if (isMatch) {
-                res.status(200).json(user);
-            } else {
-                res.status(400).json({ message: "Invalid mot de pass" });
-            }
-        } else res.status(400).json({ message: "Invalid email" });
-    } catch (err) {
-        res.status(400).json({ message: "Erreur pendant inscription" });
-    }
-});
-
+              // console.log(user)
+              let token = jwt.sign({ id: user.id }, 'secret_key',{expiresIn:'1h'});
+              res.status(200).json({ token, email: user.email });
+          } else {
+              res.status(400).json({ message: "Invalid mot de pass" });
+          }
+      } else res.status(400).json({ message: "User n'éxiste pas" });
+  } catch (err) {
+      res.status(400).json({ message: "Erreur pendant inscription" });
+  }
+  });
 
 // app.post("/login", async (req, res) => {
 //     try {
@@ -72,8 +80,8 @@ app.post("/login", async (req, res) => {
 //             );
 
 //             if (isMatch) {
-//                 let token = jwt.sign({ id: user.id }, secret_key);
-//                 res.status(200).json({ token, email: user.email });
+//                 let token = jwt.sign({ id: user.id }, 'chocolat', {expiresIn: ''});
+//                 res.status(200).json({token, email: user.email });
 //             } else {
 //                 res.status(400).json({ message: "Invalid mot de pass" });
 //             }
@@ -83,9 +91,14 @@ app.post("/login", async (req, res) => {
 //     }
 // });
 
-// app.get("/secret", (req, res) => {
-//     res.send("Route spécial pour les user authentifié");
-// });
+app.get("/secret", (req, res) => {
+    let token = req.headers.authorization.replace("Bearer ", "");
+    jwt.verify(token, secret_key, function (err, payload) {
+        if (err) {
+            res.status(401).json({ message: "Unauthorized" });
+        } else res.send("On est validé, on a access a cette Route :D");
+    });
+})
 
 let port=1200
 app.listen(port, ()=>console.log(`le serveur tourne bien sur le port ${port}`))
